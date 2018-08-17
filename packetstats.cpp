@@ -95,31 +95,60 @@ void PrintJson(){
 
 int main(int argc, char **argv){
 
-//for s in `cat packetstats.cpp |grep 'Out\[\"[a-zA-Z_-]\{0,20\}\"\]' -o |sort -u `;do  echo $s=0\; ;done
+//for s in `cat packetstats.cpp |grep 'Out\[\"[0-9a-zA-Z_-]\{0,120\}\"\]' -o |sort -u `;do  echo $s=0\; ;done
 
-	Out["EthernetBytes"]=0;
-	Out["IpBytes"]=0;
-	Out["IpPackets"]=0;
-	Out["TCP_ACK"]=0;
-	Out["TCP_ACK-ECE"]=0;
-	Out["TCP_ACK-RST"]=0;
-	Out["TcpBytes"]=0;
-	Out["TCP_FIN"]=0;
-	Out["TCP_FIN-ACK"]=0;
-	Out["TCP_FIN-PSH"]=0;
-	Out["TCP_FIN-PSH-ACK"]=0;
-	Out["TCP_OTHER"]=0;
-	Out["TcpPackets"]=0;
-	Out["TCP_PSH-ACK"]=0;
-	Out["TCP_PSH-URG"]=0;
-	Out["TCP_RST"]=0;
-	Out["TCP_SYN"]=0;
-	Out["TCP_SYN-ACK"]=0;
-	Out["TooSmallFrames"]=0;
-	Out["TotalPackets"]=0;
-	Out["UdpBytes"]=0;
-	Out["UdpPackets"]=0;
-	Out["VlanTagged"]=0;
+Out["L2_ARP-Bytes"]=0;
+Out["L2_ARP-Packets"]=0;
+Out["L2_LLDP-Bytes"]=0;
+Out["L2_LLDP-Packets"]=0;
+Out["L2_OTHER-Bytes"]=0;
+Out["L2_OTHER-Packets"]=0;
+Out["L3_IP-Bytes"]=0;
+Out["L3_IP-Packets"]=0;
+Out["L3_IPv4-Bytes"]=0;
+Out["L3_IPv4-Packets"]=0;
+Out["L3_IPv6-Bytes"]=0;
+Out["L3_IPv6-Packets"]=0;
+Out["L4_ICMP-Bytes"]=0;
+Out["L4_ICMP-Packets"]=0;
+Out["L4_IGMP-Bytes"]=0;
+Out["L4_IGMP-Packets"]=0;
+Out["L4_OTHER-Bytes"]=0;
+Out["L4_OTHER-Packets"]=0;
+Out["L4_TCP-Bytes"]=0;
+Out["L4_TCP-Packets"]=0;
+Out["L4_UDP-Packets"]=0;
+Out["L4_UDP-UdpBytes"]=0;
+Out["TCP_FLAGS-ACK-Bytes"]=0;
+Out["TCP_FLAGS-ACK-ECE-Bytes"]=0;
+Out["TCP_FLAGS-ACK-ECE-Packets"]=0;
+Out["TCP_FLAGS-ACK-Packets"]=0;
+Out["TCP_FLAGS-ACK-RST-Bytes"]=0;
+Out["TCP_FLAGS-ACK-RST-Packets"]=0;
+Out["TCP_FLAGS-FIN-ACK-Bytes"]=0;
+Out["TCP_FLAGS-FIN-ACK-Packets"]=0;
+Out["TCP_FLAGS-FIN-Bytes"]=0;
+Out["TCP_FLAGS-FIN-Packets"]=0;
+Out["TCP_FLAGS-FIN-PSH-ACK-Bytes"]=0;
+Out["TCP_FLAGS-FIN-PSH-ACK-Packets"]=0;
+Out["TCP_FLAGS-FIN-PSH-Bytes"]=0;
+Out["TCP_FLAGS-FIN-PSH-Packets"]=0;
+Out["TCP_FLAGS-OTHER-Bytes"]=0;
+Out["TCP_FLAGS-OTHER-Packets"]=0;
+Out["TCP_FLAGS-PSH-ACK-Bytes"]=0;
+Out["TCP_FLAGS-PSH-ACK-Packets"]=0;
+Out["TCP_FLAGS-PSH-URG-Bytes"]=0;
+Out["TCP_FLAGS-PSH-URG-Packets"]=0;
+Out["TCP_FLAGS-RST-Bytes"]=0;
+Out["TCP_FLAGS-RST-Packets"]=0;
+Out["TCP_FLAGS-SYN-ACK-Bytes"]=0;
+Out["TCP_FLAGS-SYN-ACK-Packets"]=0;
+Out["TCP_FLAGS-SYN-Bytes"]=0;
+Out["TCP_FLAGS-SYN-Packets"]=0;
+Out["TooSmallFrames"]=0;
+Out["TOTAL-Bytes"]=0;
+Out["TOTAL-Packets"]=0;
+Out["VlanTagged"]=0;
 
 
 	pcap=pcap_open_offline(argv[1], errbuf);
@@ -129,8 +158,8 @@ int main(int argc, char **argv){
 	}
 
 	while((packet=pcap_next(pcap,&hdr))!=NULL) {
-		Out["TotalPackets"]++;
-		Out["EthernetBytes"]=Out["EthernetBytes"]+hdr.caplen+12+8+4; 
+		Out["TOTAL-Packets"]++;
+		Out["TOTAL-Bytes"]+=hdr.caplen+12+8+4; 
 		if(hdr.caplen<12) {
 			Out["TooSmallFrames"]++;
 			continue;
@@ -155,72 +184,116 @@ int main(int argc, char **argv){
 		/* Calculate the size of the ethernet header, normal or one that includes the vlan tag */
 		eth_len=sizeof(struct ether_header)+offset_payload;
 		switch(htons(ether_type)){
-			case 0x0800:
-				Out["IpPackets"]++;
-				Out["IpBytes"]+=hdr.caplen-(eth_len);
+			case 0x0800://ipv4
+				Out["L3_IP-Packets"]++;
+				Out["L3_IP-Bytes"]+=hdr.caplen-(eth_len);
 				ip=(struct iphdr *)(packet+eth_len);
 				switch(ip->ip_v){
 					case 0x04:	
-						Out["IPv4Packets"]++;
+						Out["L3_IPv4-Packets"]++;
+						Out["L3_IPv4-Bytes"]+=(hdr.caplen-eth_len);
 						switch(ip->ip_p){
+							case 0x01:
+								Out["L4_ICMP-Packets"]++;
+								Out["L4_ICMP-Bytes"]+=(hdr.caplen-eth_len);
+								break;
+							case 0x02:
+								Out["L4_IGMP-Packets"]++;
+								Out["L4_IGMP-Bytes"]+=(hdr.caplen-eth_len);
+								break;
 							case 0x06:
-								Out["TcpPackets"]++;
-								Out["TcpBytes"]+=(hdr.caplen-eth_len);
+								Out["L4_TCP-Packets"]++;
+								Out["L4_TCP-Bytes"]+=(hdr.caplen-eth_len);
 								tcp=(struct tcphdr*)ip+1;
 								switch(tcp->Flags){
 									case TCP_SYN:
-										Out["TCP_SYN"]++;
+										Out["TCP_FLAGS-SYN-Packets"]++;
+										Out["TCP_FLAGS-SYN-Bytes"]+=(hdr.caplen-eth_len);;
 										break;
 									case (TCP_SYN|TCP_ACK):
-										Out["TCP_SYN-ACK"]++;
+										Out["TCP_FLAGS-SYN-ACK-Packets"]++;
+										Out["TCP_FLAGS-SYN-ACK-Bytes"]+=(hdr.caplen-eth_len);;
 										break;
 									case (TCP_ACK):
-										Out["TCP_ACK"]++;
+										Out["TCP_FLAGS-ACK-Packets"]++;
+										Out["TCP_FLAGS-ACK-Bytes"]+=(hdr.caplen-eth_len);;
 										break;
 									case (TCP_ACK|TCP_PSH):
-										Out["TCP_PSH-ACK"]++;
+										Out["TCP_FLAGS-PSH-ACK-Packets"]++;
+										Out["TCP_FLAGS-PSH-ACK-Bytes"]+=(hdr.caplen-eth_len);;
 										break;
 									case (TCP_RST):
-										Out["TCP_RST"]++;
+										Out["TCP_FLAGS-RST-Packets"]++;
+										Out["TCP_FLAGS-RST-Bytes"]+=(hdr.caplen-eth_len);;
 										break;
 									case (TCP_ACK|TCP_FIN):
-										Out["TCP_FIN-ACK"]++;
+										Out["TCP_FLAGS-FIN-ACK-Packets"]++;
+										Out["TCP_FLAGS-FIN-ACK-Bytes"]+=(hdr.caplen-eth_len);;
 										break;
 									case (TCP_FIN):
-										Out["TCP_FIN"]++;
+										Out["TCP_FLAGS-FIN-Packets"]++;
+										Out["TCP_FLAGS-FIN-Bytes"]+=(hdr.caplen-eth_len);;
 										break;														
 									case (TCP_FIN|TCP_ACK|TCP_PSH):
-										Out["TCP_FIN-PSH-ACK"]++;
+										Out["TCP_FLAGS-FIN-PSH-ACK-Packets"]++;
+										Out["TCP_FLAGS-FIN-PSH-ACK-Bytes"]+=(hdr.caplen-eth_len);;
 										break;		
 									case (TCP_FIN|TCP_PSH):
-										Out["TCP_FIN-PSH"]++;
+										Out["TCP_FLAGS-FIN-PSH-Packets"]++;
+										Out["TCP_FLAGS-FIN-PSH-Bytes"]+=(hdr.caplen-eth_len);;
 										break;
 									case (TCP_PSH|TCP_URG):
-										Out["TCP_PSH-URG"]++;
+										Out["TCP_FLAGS-PSH-URG-Packets"]++;
+										Out["TCP_FLAGS-PSH-URG-Bytes"]+=(hdr.caplen-eth_len);;
 										break;										
 									case (TCP_ACK|TCP_ECE):
-										Out["TCP_ACK-ECE"]++;
+										Out["TCP_FLAGS-ACK-ECE-Packets"]++;
+										Out["TCP_FLAGS-ACK-ECE-Bytes"]+=(hdr.caplen-eth_len);;
 										break;											
 									case (TCP_ACK|TCP_RST):
-										Out["TCP_ACK-RST"]++;
+										Out["TCP_FLAGS-ACK-RST-Packets"]++;
+										Out["TCP_FLAGS-ACK-RST-Bytes"]+=(hdr.caplen-eth_len);;
 										break;														
 									default:
-										Out["TCP_OTHER"]++;
+										Out["TCP_FLAGS-OTHER-Packets"]++;
+										Out["TCP_FLAGS-OTHER-Bytes"]+=(hdr.caplen-eth_len);;
 										//printf("Leading text \n"BYTE_TO_BINARY_PATTERN, BYTE_TO_BINARY(tcp->Flags));
 										break;
 								}
 								break;
 							case 0x11:
-								Out["UdpPackets"]++;
-								Out["UdpBytes"]+=(hdr.caplen-eth_len);
+								Out["L4_UDP-Packets"]++;
+								Out["L4_UDP-UdpBytes"]+=(hdr.caplen-eth_len);
+								break;
+							default:
+								Out["L4_OTHER-Packets"]++;
+								Out["L4_OTHER-Bytes"]++;
+								printf("%.2x\n",ip->ip_p);
 								break;
 						}
 						break;
-					case 0x06:
-						Out["IPv6Packets"]++;
-						break;
 					}
 				break;
+			case 0x86DD: //ipv6
+				Out["L3_IP-Packets"]++;
+				Out["L3_IP-Bytes"]+=hdr.caplen-(eth_len);
+				Out["L3_IPv6-Packets"]++;
+				Out["L3_IPv6-Bytes"]+=(hdr.caplen-eth_len);
+				break;
+			case 0x0806:
+				Out["L2_ARP-Packets"]++;
+				Out["L2_ARP-Bytes"]+=(hdr.caplen-eth_len);
+				break;
+			case 0x88CC:
+				Out["L2_LLDP-Packets"]++;
+				Out["L2_LLDP-Bytes"]+=(hdr.caplen-eth_len);
+				break;
+			default:
+				//printf("%.4X",htons(ether_type));
+				Out["L2_OTHER-Packets"]++;
+				Out["L2_OTHER-Bytes"]+=(hdr.caplen-eth_len);
+				break;
+
 		}
 	}
 	PrintJson();
