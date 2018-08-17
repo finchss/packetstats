@@ -10,6 +10,10 @@
 #include <iostream>
 #include <map>
 #include <iterator>
+#include <algorithm>
+#include <string>
+#include <utility>
+#include <vector>
 
 using namespace std;
 #define TCP_FIN  (0x1 << 0)  
@@ -81,16 +85,56 @@ struct ether_header *eth;
 struct ether_header_vlan *ether_header_vlan;
 
 std::map <std::string,int> Out;
+std::map <std::string,int> DstIps;
+std::map <std::string,int> SrcIps;
+std::vector<std::pair<std::string, int> > TopDstIpsPackets(20);
+std::vector<std::pair<std::string, int> > TopSrcIpsPackets(20);
 
 void PrintJson(){
+
+	//print main stuff 
 	cout<<"{"<<endl;
 	for (std::map <std::string,int>::iterator it = Out.begin();it!=Out.end();it++){
-		cout<<"\""<<it->first << "\":" <<it->second;	
-		if (++it!=Out.end()) cout<<",";
+		cout<<"\t\""<<it->first << "\":" <<it->second;	
+		std::cout<<","<<std::endl;
+		/*if (++it!=Out.end()) cout<<",";
 		it--;
 		cout<<endl;
+		*/
 	}
+
+	//top destination ips (packets)
+	std::cout << "\t\"TopDstIpsPackets\": { " <<std::endl;
+	
+	for (std::vector<std::pair<std::string, int> >::iterator it = TopDstIpsPackets.begin() ; it != TopDstIpsPackets.end(); ++it)
+    {
+        std::cout <<"\t\t\""<< it->first << "\":" << it->second;
+        if(++it<TopDstIpsPackets.end()) {
+        	if(it->second!=0) cout<<","; else {
+        		cout<<endl;
+        		break;
+        	}
+        }
+        it--;
+        cout<<endl;
+    }
+	cout<<"\t},"<<endl;
+
+
+	//top source ips (packets)
+	std::cout << "\t\"TopSrcIpsPackets\": { " <<std::endl;
+	for (std::vector<std::pair<std::string, int> >::iterator it = TopSrcIpsPackets.begin() ; it != TopSrcIpsPackets.end(); ++it)
+    {
+        std::cout <<"\t\t\""<< it->first << "\":" << it->second;
+        if(++it<TopSrcIpsPackets.end()) cout<<",";
+        it--;
+        cout<<endl;
+    }
+	cout<<"\t}"<<endl;
+
+
 	cout<<"}"<<endl;
+	
 }
 
 int main(int argc, char **argv){
@@ -159,6 +203,13 @@ Out["VlanTagged"]=0;
 
 	while((packet=pcap_next(pcap,&hdr))!=NULL) {
 		Out["TOTAL-Packets"]++;
+		/* 
+			We add Interframe Gap, Preamble and CRC, so we get the actual bits/bytes on the wire, 
+			it is quite somehow important for many small packets.
+			https://kb.juniper.net/InfoCenter/index?page=content&id=kb14737
+			https://www.cisco.com/c/en/us/about/security-center/network-performance-metrics.html
+			
+		*/
 		Out["TOTAL-Bytes"]+=hdr.caplen+12+8+4; 
 		if(hdr.caplen<12) {
 			Out["TooSmallFrames"]++;
@@ -192,6 +243,8 @@ Out["VlanTagged"]=0;
 					case 0x04:	
 						Out["L3_IPv4-Packets"]++;
 						Out["L3_IPv4-Bytes"]+=(hdr.caplen-eth_len);
+						DstIps[inet_ntoa(ip->ip_dst)]++;
+						SrcIps[inet_ntoa(ip->ip_src)]++;
 						switch(ip->ip_p){
 							case 0x01:
 								Out["L4_ICMP-Packets"]++;
@@ -216,7 +269,7 @@ Out["VlanTagged"]=0;
 										break;
 									case (TCP_ACK):
 										Out["TCP_FLAGS-ACK-Packets"]++;
-										Out["TCP_FLAGS-ACK-Bytes"]+=(hdr.caplen-eth_len);;
+										Out["TCP_FLAGS-ACK-Bytes"]+=(hdr.caplen-eth_len);
 										break;
 									case (TCP_ACK|TCP_PSH):
 										Out["TCP_FLAGS-PSH-ACK-Packets"]++;
@@ -268,7 +321,7 @@ Out["VlanTagged"]=0;
 							default:
 								Out["L4_OTHER-Packets"]++;
 								Out["L4_OTHER-Bytes"]++;
-								printf("%.2x\n",ip->ip_p);
+								//printf("%.2x\n",ip->ip_p);
 								break;
 						}
 						break;
@@ -276,7 +329,7 @@ Out["VlanTagged"]=0;
 				break;
 			case 0x86DD: //ipv6
 				Out["L3_IP-Packets"]++;
-				Out["L3_IP-Bytes"]+=hdr.caplen-(eth_len);
+				Out["L3_IP-Bytes"]+=(hdr.caplen-eth_len);
 				Out["L3_IPv6-Packets"]++;
 				Out["L3_IPv6-Bytes"]+=(hdr.caplen-eth_len);
 				break;
@@ -296,10 +349,37 @@ Out["VlanTagged"]=0;
 
 		}
 	}
-	PrintJson();
-	/*
-	for (std::map <std::string,int>::iterator it = Out.begin();it!=Out.end();it++){
-		std::cout<<it->first << " => " <<it->second<<std::endl;
+	
+/*
+	for (map <string,int>::iterator it = SrcIps.begin();it!=SrcIps.end();it++){
+		cout<<"ipp "<<it->first << ":" <<it->second<<endl;
 	}
+*/
+	/* 
+	Create Top dst ips list 
+	ripped from here https://stackoverflow.com/questions/17963905/how-can-i-get-the-top-n-keys-of-stdmap-based-on-their-values 
+	don't judge me monkey
 	*/
+	std::partial_sort_copy(DstIps.begin(),
+                           DstIps.end(),
+                           TopDstIpsPackets.begin(),
+                           TopDstIpsPackets.end(),
+                           [](std::pair<const std::string, int> const& l,
+                              std::pair<const std::string, int> const& r)
+                           {
+                               return l.second > r.second;
+                           });
+	/* top src ips list */
+	std::partial_sort_copy(SrcIps.begin(),
+                           SrcIps.end(),
+                           TopSrcIpsPackets.begin(),
+                           TopSrcIpsPackets.end(),
+                           [](std::pair<const std::string, int> const& l,
+                              std::pair<const std::string, int> const& r)
+                           {
+                               return l.second > r.second;
+                           });
+	  PrintJson();
+
+
 }
