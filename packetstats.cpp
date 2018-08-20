@@ -7,6 +7,9 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <pcap/pcap.h>
+#include <sys/resource.h>
+
+
 #include <iostream>
 #include <map>
 #include <iterator>
@@ -14,6 +17,11 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+
+struct rusage  rusage;
+#define SHOWRSS        getrusage(RUSAGE_THREAD,&rusage);printf("Rss: %ld MiB\n",rusage.ru_maxrss/1024);
+
 
 using namespace std;
 
@@ -184,7 +192,6 @@ void PrintJson(){
 int main(int argc, char **argv){
 
 //for s in `cat packetstats.cpp |grep 'Out\[\"[0-9a-zA-Z_-]\{0,120\}\"\]' -o |sort -u `;do  echo $s=0\; ;done
-
 
 
 	pcap=pcap_open_offline(argv[1], errbuf);
@@ -371,6 +378,7 @@ int main(int argc, char **argv){
 	ripped from here https://stackoverflow.com/questions/17963905/how-can-i-get-the-top-n-keys-of-stdmap-based-on-their-values 
 	don't judge me monkey
 	*/
+	cout<<"Sorting Top Dst Ips"<<endl;
 	std::partial_sort_copy(DstIps.begin(),
 						   DstIps.end(),
 						   TopDstIpsPackets.begin(),
@@ -381,6 +389,7 @@ int main(int argc, char **argv){
 							   return l.second > r.second;
 						   });
 	/* top src ips list */
+	cout<<"Sorting Top Src Ips"<<endl;
 	std::partial_sort_copy(SrcIps.begin(),
 						   SrcIps.end(),
 						   TopSrcIpsPackets.begin(),
@@ -392,7 +401,8 @@ int main(int argc, char **argv){
 						   });
 
 	/* top src ports */
-		std::partial_sort_copy(UdpSrcPorts.begin(),
+	cout<<"Sorting Top Src ports"<<endl;
+	std::partial_sort_copy(UdpSrcPorts.begin(),
 						   UdpSrcPorts.end(),
 						   TopUdpSrcPorts.begin(),
 						   TopUdpSrcPorts.end(),
@@ -401,9 +411,7 @@ int main(int argc, char **argv){
 						   {
 							   return l.second > r.second;
 						   });
-
-
-	  PrintJson();
+	PrintJson();
 
 
 }
