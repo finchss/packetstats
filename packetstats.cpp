@@ -378,7 +378,7 @@ int main(int argc, char **argv){
 	ripped from here https://stackoverflow.com/questions/17963905/how-can-i-get-the-top-n-keys-of-stdmap-based-on-their-values 
 	don't judge me monkey
 	*/
-	cout<<"Sorting Top Dst Ips"<<endl;
+	//cout<<"Sorting Top Dst Ips"<<endl;
 	std::partial_sort_copy(DstIps.begin(),
 						   DstIps.end(),
 						   TopDstIpsPackets.begin(),
@@ -389,7 +389,7 @@ int main(int argc, char **argv){
 							   return l.second > r.second;
 						   });
 	/* top src ips list */
-	cout<<"Sorting Top Src Ips"<<endl;
+	//cout<<"Sorting Top Src Ips"<<endl;
 	std::partial_sort_copy(SrcIps.begin(),
 						   SrcIps.end(),
 						   TopSrcIpsPackets.begin(),
@@ -401,7 +401,7 @@ int main(int argc, char **argv){
 						   });
 
 	/* top src ports */
-	cout<<"Sorting Top Src ports"<<endl;
+	//cout<<"Sorting Top Src ports"<<endl;
 	std::partial_sort_copy(UdpSrcPorts.begin(),
 						   UdpSrcPorts.end(),
 						   TopUdpSrcPorts.begin(),
