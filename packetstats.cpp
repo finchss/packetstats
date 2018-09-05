@@ -160,7 +160,7 @@ void PrintJson(){
 	cout<<"\t}"<<endl;
 
 	//top src udp ports
-	std::cout << "\t\"TopUdpSrcPorts\": { " <<std::endl;
+	std::cout << "\t,\"TopUdpSrcPorts\": { " <<std::endl;
 	for (std::vector<std::pair<int, int> >::iterator it = TopUdpSrcPorts.begin() ; it != TopUdpSrcPorts.end(); ++it)
 	{
 		std::cout <<"\t\t\""<< it->first << "\":" << it->second;
