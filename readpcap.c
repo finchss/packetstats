@@ -27,6 +27,7 @@ struct pcapfile {
 	FILE *fp;
 	struct lpcap_hdr hdr;
 	unsigned char *p;
+	int isstdin;
 };
 typedef struct pcapfile pcap_t;
 
@@ -60,38 +61,27 @@ struct pcapfile * pcap_open_offline(char * f, char *errbuf){
 		return (NULL);
 	memset(l,0,sizeof(struct pcapfile));
 
-	l->fp=fopen(f,"rb");
+	if(strcmp("-",f)==0) {
+		l->fp=stdin;
+		l->isstdin=1;
+	} 		
+	else 
+		l->fp=fopen(f,"rb");
 
 	if(l->fp==NULL){
 		free(l);
-		printf("Cannot open %s\n",f);
+		fprintf(stderr,"Cannot open %s\n",f);
 		return (NULL);
 	}
 
-	if(fseek(l->fp, 0L, SEEK_END)!=0){
-		printf("Cannot seek\n");
-		free(l);
-		return(NULL);
-	}
-	size_t sz = ftell(l->fp);
-	if(sz<sizeof(struct lpcap_hdr)){
-		printf("Invalid file %s\n",f);
-		free(l);
-		return (NULL);
-	}
-	if(fseek(l->fp, 0L, SEEK_SET)!=0){
-		printf("Cannot seek\n");
-		free(l);
-		return(NULL);
-	}
 	if(fread(&l->hdr,sizeof(struct lpcap_hdr),1,l->fp)!=1){
-		printf("Read error\n");
+		fprintf(stderr,"Read error\n");
 		free(l);
 		return (NULL);
 	}
 	//printf("%4X",l->hdr.magic_number);
 	if(l->hdr.magic_number!=0xA1B2C3D4){
-		printf("endianness change not handled\n");
+		fprintf(stderr,"Endianness change not handled\n");
 		free(l);
 		return(NULL);
 	}

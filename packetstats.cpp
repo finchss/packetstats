@@ -6,6 +6,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <time.h>
+#include <sys/time.h>
 
 #ifdef USE_PCAP
 #include <pcap/pcap.h>
@@ -60,14 +62,14 @@ struct tcphdr {
 } __attribute__((packed));
 
 struct	ether_header {
-	u_char	ether_dhost[6];
-	u_char	ether_shost[6];
-	u_short	ether_type;
+	uint8_t	ether_dhost[6];
+	uint8_t	ether_shost[6];
+	uint16_t ether_type;
 }__attribute__((packed));
 
 struct	ether_header_vlan {
-	u_char	ether_dhost[6];
-	u_char	ether_shost[6];
+	uint8_t	ether_dhost[6];
+	uint8_t	ether_shost[6];
 	uint16_t vlan_proto;
 	uint16_t vlan_tci;
 	uint16_t ether_type;
