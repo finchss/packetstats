@@ -6,9 +6,14 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
-#include <pcap/pcap.h>
-#include <sys/resource.h>
 
+#ifdef USE_PCAP
+#include <pcap/pcap.h>
+#else
+#include "readpcap.c"
+#endif
+
+#include <sys/resource.h>
 
 #include <iostream>
 #include <map>
@@ -97,6 +102,7 @@ struct iphdr {
 struct iphdr *ip;
 struct tcphdr *tcp;
 struct udphdr *udp;
+
 
 char errbuf[PCAP_ERRBUF_SIZE];
 pcap_t *pcap;
