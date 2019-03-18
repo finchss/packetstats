@@ -81,7 +81,7 @@ struct pcapfile * pcap_open_offline(char * f, char *errbuf){
 	}
 	//printf("%4X",l->hdr.magic_number);
 	if(l->hdr.magic_number!=0xA1B2C3D4){
-		fprintf(stderr,"Endianness change not handled\n");
+		fprintf(stderr,"Endianness change not handled (magic_number=%X)\n",l->hdr.magic_number);
 		free(l);
 		return(NULL);
 	}

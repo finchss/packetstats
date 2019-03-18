@@ -52,7 +52,7 @@ struct udphdr {
 struct tcphdr {
 		uint16_t                src;
 		uint16_t                dst;
-		uint16_t                seq;
+		uint32_t                seq;
 		uint32_t                ack_seq;
 		uint8_t                 hl;                     //tcp header length
 		uint8_t                 Flags;
@@ -268,7 +268,6 @@ int main(int argc, char **argv){
 								TcpSrcPorts[htons(tcp->src)]++;
 								Out["L4_TCP-Packets"]++;
 								Out["L4_TCP-Bytes"]+=(hdr.caplen-eth_len);
-								
 								switch(tcp->Flags){
 									case TCP_SYN:
 										Out["TCP_FLAGS-SYN-Packets"]++;
