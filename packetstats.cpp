@@ -33,14 +33,14 @@ struct rusage  rusage;
 using namespace std;
 
 
-#define TCP_FIN  (0x1 << 0)  
-#define TCP_SYN  (0x1 << 1)  
-#define TCP_RST  (0x1 << 2) 
-#define TCP_PSH  (0x1 << 3)  
-#define TCP_ACK  (0x1 << 4)  
-#define TCP_URG  (0x1 << 5)  
-#define TCP_ECE  (0x1 << 6) 
-#define TCP_CWR  (0x1 << 7) 
+#define TCP_FIN  (0x1 << 0)
+#define TCP_SYN  (0x1 << 1)
+#define TCP_RST  (0x1 << 2)
+#define TCP_PSH  (0x1 << 3)
+#define TCP_ACK  (0x1 << 4)
+#define TCP_URG  (0x1 << 5)
+#define TCP_ECE  (0x1 << 6)
+#define TCP_CWR  (0x1 << 7)
 
 struct udphdr {
 	uint16_t 	src;
@@ -98,7 +98,7 @@ struct iphdr {
   (byte & 0x08 ? '1' : '0'), \
   (byte & 0x04 ? '1' : '0'), \
   (byte & 0x02 ? '1' : '0'), \
-  (byte & 0x01 ? '1' : '0') 
+  (byte & 0x01 ? '1' : '0')
 
 
 struct iphdr *ip;
@@ -116,21 +116,25 @@ uint16_t ether_type;
 struct ether_header *eth;
 struct ether_header_vlan *ether_header_vlan;
 
+std::map <int,int> IpPacketLen;
 std::map <std::string,int> Out;
 std::map <std::string,int> DstIps;
 std::map <std::string,int> SrcIps;
 std::map <int,int> TcpSrcPorts;
 std::map <int,int> UdpSrcPorts;
-std::vector<std::pair<std::string, int> > TopDstIpsPackets(20);
-std::vector<std::pair<std::string, int> > TopSrcIpsPackets(20);
-std::vector<std::pair<int , int> > TopUdpSrcPorts(20);
+
+std::vector<std::pair<std::string, int> > TopDstIpsPackets(30);
+std::vector<std::pair<std::string, int> > TopSrcIpsPackets(30);
+std::vector<std::pair<int , int> > TopUdpSrcPorts(30);
+std::vector<std::pair<int , int> > TopTcpSrcPorts(30);
+std::vector<std::pair<int , int> > TopIpPacketLen(30);
 
 void PrintJson(){
 
-	//print main stuff 
+	//print main stuff
 	cout<<"{"<<endl;
 	for (std::map <std::string,int>::iterator it = Out.begin();it!=Out.end();it++){
-		cout<<"\t\""<<it->first << "\":" <<it->second;	
+		cout<<"\t\""<<it->first << "\":" <<it->second;
 		std::cout<<","<<std::endl;
 		/*if (++it!=Out.end()) cout<<",";
 		it--;
@@ -140,7 +144,7 @@ void PrintJson(){
 
 	//top destination ips (packets)
 	std::cout << "\t\"TopDstIpsPackets\": { " <<std::endl;
-	
+
 	for (std::vector<std::pair<std::string, int> >::iterator it = TopDstIpsPackets.begin() ; it != TopDstIpsPackets.end(); ++it)
 	{
 		std::cout <<"\t\t\""<< it->first << "\":" << it->second;
@@ -183,6 +187,43 @@ void PrintJson(){
 	}
 	cout<<"\t}"<<endl;
 
+	//top src tcp ports
+	std::cout << "\t,\"TopTcpSrcPorts\": { " <<std::endl;
+	for (std::vector<std::pair<int, int> >::iterator it = TopTcpSrcPorts.begin() ; it != TopTcpSrcPorts.end(); ++it)
+	{
+		std::cout <<"\t\t\""<< it->first << "\":" << it->second;
+		if(++it<TopTcpSrcPorts.end()) {
+			if(it->first!=0) cout<<","; else {
+				cout<<endl;
+				break;
+			}
+		}
+		it--;
+		cout<<endl;
+	}
+	cout<<"\t}"<<endl;
+
+
+
+
+	//top ip packet lens
+	std::cout << "\t,\"TopIpPacketLen\": { " <<std::endl;
+	for (std::vector<std::pair<int, int> >::iterator it = TopIpPacketLen.begin() ; it != TopIpPacketLen.end(); ++it)
+	{
+		std::cout <<"\t\t\""<< it->first << "\":" << it->second;
+		if(++it<TopIpPacketLen.end()) {
+			if(it->first!=0) cout<<","; else {
+				cout<<endl;
+				break;
+			}
+		}
+		it--;
+		cout<<endl;
+	}
+	cout<<"\t}"<<endl;
+
+
+
 
 
 	//end !?
@@ -193,7 +234,7 @@ void PrintJson(){
 	/*
 	for(std::map<int,int>::iterator it=SrcPorts.begin();it!=SrcPorts.end();it++){
 		cout<<it->first<< " " << it->second<<std::endl;
-		
+
 	}*/
 }
 
@@ -210,20 +251,20 @@ int main(int argc, char **argv){
 
 	while((packet=pcap_next(pcap,&hdr))!=NULL) {
 		Out["TOTAL-Packets"]++;
-		/* 
-			We add Interframe Gap, Preamble and CRC, so we get the actual bits/bytes on the wire, 
+		/*
+			We add Interframe Gap, Preamble and CRC, so we get the actual bits/bytes on the wire,
 			it is quite somehow important for many small packets.
 			https://kb.juniper.net/InfoCenter/index?page=content&id=kb14737
 			https://www.cisco.com/c/en/us/about/security-center/network-performance-metrics.html
-			
+
 		*/
-		Out["TOTAL-Bytes"]+=hdr.caplen+12+8+4; 
+		Out["TOTAL-Bytes"]+=hdr.caplen+12+8+4;
 		if(hdr.caplen<12) {
 			Out["TooSmallFrames"]++;
 			continue;
 		}
 		eth=(struct ether_header *)packet;
-		
+
 		int offset_payload=0;
 		int eth_len=0;
 		/* "Decapsulate" Vlan tagged frames */
@@ -237,7 +278,7 @@ int main(int argc, char **argv){
 			default:
 				ether_type=eth->ether_type;
 				break;
-			
+
 		}
 		/* Calculate the size of the ethernet header, normal or one that includes the vlan tag */
 		eth_len=sizeof(struct ether_header)+offset_payload;
@@ -247,12 +288,13 @@ int main(int argc, char **argv){
 				Out["L3_IP-Bytes"]+=hdr.caplen-(eth_len);
 				ip=(struct iphdr *)(packet+eth_len);
 				switch(ip->ip_v){
-					case 0x04:	
+					case 0x04:
 						Out["L3_IPv4-Packets"]++;
 						Out["L3_IPv4-Bytes"]+=(hdr.caplen-eth_len);
 						DstIps[inet_ntoa(ip->ip_dst)]++;
 						SrcIps[inet_ntoa(ip->ip_src)]++;
-					
+						//printf("%d\n",ntohs(ip->ip_len));
+                        IpPacketLen[ntohs(ip->ip_len)]++;
 						switch(ip->ip_p){
 							case 0x01:
 								Out["L4_ICMP-Packets"]++;
@@ -268,6 +310,7 @@ int main(int argc, char **argv){
 								TcpSrcPorts[htons(tcp->src)]++;
 								Out["L4_TCP-Packets"]++;
 								Out["L4_TCP-Bytes"]+=(hdr.caplen-eth_len);
+								//printf("%d\n",ntohs(tcp->window));
 								switch(tcp->Flags){
 									case TCP_SYN:
 										Out["TCP_FLAGS-SYN-Packets"]++;
@@ -296,11 +339,11 @@ int main(int argc, char **argv){
 									case (TCP_FIN):
 										Out["TCP_FLAGS-FIN-Packets"]++;
 										Out["TCP_FLAGS-FIN-Bytes"]+=(hdr.caplen-eth_len);;
-										break;														
+										break;
 									case (TCP_FIN|TCP_ACK|TCP_PSH):
 										Out["TCP_FLAGS-FIN-PSH-ACK-Packets"]++;
 										Out["TCP_FLAGS-FIN-PSH-ACK-Bytes"]+=(hdr.caplen-eth_len);;
-										break;		
+										break;
 									case (TCP_FIN|TCP_PSH):
 										Out["TCP_FLAGS-FIN-PSH-Packets"]++;
 										Out["TCP_FLAGS-FIN-PSH-Bytes"]+=(hdr.caplen-eth_len);;
@@ -308,15 +351,15 @@ int main(int argc, char **argv){
 									case (TCP_PSH|TCP_URG):
 										Out["TCP_FLAGS-PSH-URG-Packets"]++;
 										Out["TCP_FLAGS-PSH-URG-Bytes"]+=(hdr.caplen-eth_len);;
-										break;										
+										break;
 									case (TCP_ACK|TCP_ECE):
 										Out["TCP_FLAGS-ACK-ECE-Packets"]++;
 										Out["TCP_FLAGS-ACK-ECE-Bytes"]+=(hdr.caplen-eth_len);;
-										break;											
+										break;
 									case (TCP_ACK|TCP_RST):
 										Out["TCP_FLAGS-ACK-RST-Packets"]++;
 										Out["TCP_FLAGS-ACK-RST-Bytes"]+=(hdr.caplen-eth_len);;
-										break;														
+										break;
 									default:
 										Out["TCP_FLAGS-OTHER-Packets"]++;
 										Out["TCP_FLAGS-OTHER-Bytes"]+=(hdr.caplen-eth_len);;
@@ -329,7 +372,7 @@ int main(int argc, char **argv){
 								Out["L4_UDP-UdpBytes"]+=(hdr.caplen-eth_len);
 								udp=(struct udphdr *)((char *)ip+sizeof(struct iphdr));
 								switch(ntohs(ip->ip_off)){
-									case 0x4000://df 
+									case 0x4000://df
 									case 0x2000://mf
 									case 0x0000://no fragments
 										UdpSrcPorts[ntohs(udp->src)]++;
@@ -374,15 +417,15 @@ int main(int argc, char **argv){
 
 		}
 	}
-	
+
 /*
 	for (map <string,int>::iterator it = SrcIps.begin();it!=SrcIps.end();it++){
 		cout<<"ipp "<<it->first << ":" <<it->second<<endl;
 	}
 */
-	/* 
-	Create Top dst ips list 
-	ripped from here https://stackoverflow.com/questions/17963905/how-can-i-get-the-top-n-keys-of-stdmap-based-on-their-values 
+	/*
+	Create Top dst ips list
+	ripped from here https://stackoverflow.com/questions/17963905/how-can-i-get-the-top-n-keys-of-stdmap-based-on-their-values
 	don't judge me monkey
 	*/
 	//cout<<"Sorting Top Dst Ips"<<endl;
@@ -413,6 +456,27 @@ int main(int argc, char **argv){
 						   UdpSrcPorts.end(),
 						   TopUdpSrcPorts.begin(),
 						   TopUdpSrcPorts.end(),
+						   [](std::pair<const int , int> const& l,
+							  std::pair<const int, int> const& r)
+						   {
+							   return l.second > r.second;
+						   });
+
+	// sor top ip packet lens
+	std::partial_sort_copy(IpPacketLen.begin(),
+						   IpPacketLen.end(),
+						   TopIpPacketLen.begin(),
+						   TopIpPacketLen.end(),
+						   [](std::pair<const int , int> const& l,
+							  std::pair<const int, int> const& r)
+						   {
+							   return l.second > r.second;
+						   });
+	/* top tcp src ports */
+	std::partial_sort_copy(TcpSrcPorts.begin(),
+						   TcpSrcPorts.end(),
+						   TopTcpSrcPorts.begin(),
+						   TopTcpSrcPorts.end(),
 						   [](std::pair<const int , int> const& l,
 							  std::pair<const int, int> const& r)
 						   {
