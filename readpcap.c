@@ -2,7 +2,9 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <zlib.h>
 
+#define USE_ZLIB 1
 
 #define PCAP_ERRBUF_SIZE 8192
 struct  lpcap_hdr {
@@ -65,7 +67,7 @@ struct pcapfile * pcap_open_offline(char * f, char *errbuf){
 		l->fp=stdin;
 		l->isstdin=1;
 	} 		
-	else 
+	else
 		l->fp=fopen(f,"rb");
 
 	if(l->fp==NULL){

@@ -1,13 +1,13 @@
-#include <limits.h>
-#include <signal.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
+#include <climits>
+#include <csignal>
+#include <cstdio>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
 #include <unistd.h>
 #include <arpa/inet.h>
-#include <time.h>
-#include <sys/time.h>
+#include <ctime>
+
 
 #ifdef USE_PCAP
 #include <pcap/pcap.h>
@@ -26,21 +26,21 @@
 #include <vector>
 
 
-struct rusage  rusage;
+struct rusage  usage;
 #define SHOWRSS        getrusage(RUSAGE_THREAD,&rusage);printf("Rss: %ld MiB\n",rusage.ru_maxrss/1024);
 
 
 using namespace std;
 
 
-#define TCP_FIN  (0x1 << 0)
-#define TCP_SYN  (0x1 << 1)
-#define TCP_RST  (0x1 << 2)
-#define TCP_PSH  (0x1 << 3)
-#define TCP_ACK  (0x1 << 4)
-#define TCP_URG  (0x1 << 5)
-#define TCP_ECE  (0x1 << 6)
-#define TCP_CWR  (0x1 << 7)
+#define TCP_FIN  0x01u
+#define TCP_SYN  0x02u
+#define TCP_RST  0x04u
+#define TCP_PSH  0x08u
+#define TCP_ACK  0x10u
+#define TCP_URG  0x20u
+#define TCP_ECE  0x40u
+#define TCP_CWR  0x80u
 
 struct udphdr {
 	uint16_t 	src;
@@ -117,7 +117,7 @@ struct ether_header *eth;
 struct ether_header_vlan *ether_header_vlan;
 
 std::map <int,int> IpPacketLen;
-std::map <std::string,int> Out;
+std::map <std::string,uint64_t> Out;
 std::map <std::string,int> DstIps;
 std::map <std::string,int> SrcIps;
 std::map <int,int> TcpSrcPorts;
@@ -133,19 +133,18 @@ void PrintJson(){
 
 	//print main stuff
 	cout<<"{"<<endl;
-	for (std::map <std::string,int>::iterator it = Out.begin();it!=Out.end();it++){
-		cout<<"\t\""<<it->first << "\":" <<it->second;
+
+	//for (std::map <std::string,uint64_t >::iterator it = Out.begin();it!=Out.end();it++){
+	for (auto & it : Out){
+		cout<<"\t\""<<it.first << "\":" <<it.second;
 		std::cout<<","<<std::endl;
-		/*if (++it!=Out.end()) cout<<",";
-		it--;
-		cout<<endl;
-		*/
 	}
 
 	//top destination ips (packets)
 	std::cout << "\t\"TopDstIpsPackets\": { " <<std::endl;
 
-	for (std::vector<std::pair<std::string, int> >::iterator it = TopDstIpsPackets.begin() ; it != TopDstIpsPackets.end(); ++it)
+	//	for (std::vector<std::pair<std::string, int> >::iterator it = TopDstIpsPackets.begin() ; it != TopDstIpsPackets.end(); ++it)
+	for (auto it = TopDstIpsPackets.begin() ; it != TopDstIpsPackets.end(); ++it)
 	{
 		std::cout <<"\t\t\""<< it->first << "\":" << it->second;
 		if(++it<TopDstIpsPackets.end()) {
@@ -162,8 +161,8 @@ void PrintJson(){
 
 	//top source ips (packets)
 	std::cout << "\t\"TopSrcIpsPackets\": { " <<std::endl;
-	for (std::vector<std::pair<std::string, int> >::iterator it = TopSrcIpsPackets.begin() ; it != TopSrcIpsPackets.end(); ++it)
-	{
+	//for (std::vector<std::pair<std::string, int> >::iterator it = TopSrcIpsPackets.begin() ; it != TopSrcIpsPackets.end(); ++it)
+	for (auto it = TopSrcIpsPackets.begin() ; it != TopSrcIpsPackets.end(); ++it){
 		std::cout <<"\t\t\""<< it->first << "\":" << it->second;
 		if(++it<TopSrcIpsPackets.end()) cout<<",";
 		it--;
@@ -173,8 +172,8 @@ void PrintJson(){
 
 	//top src udp ports
 	std::cout << "\t,\"TopUdpSrcPorts\": { " <<std::endl;
-	for (std::vector<std::pair<int, int> >::iterator it = TopUdpSrcPorts.begin() ; it != TopUdpSrcPorts.end(); ++it)
-	{
+	//for (std::vector<std::pair<int, int> >::iterator it = TopUdpSrcPorts.begin() ; it != TopUdpSrcPorts.end(); ++it)
+	for (auto it = TopUdpSrcPorts.begin() ; it != TopUdpSrcPorts.end(); ++it){
 		std::cout <<"\t\t\""<< it->first << "\":" << it->second;
 		if(++it<TopUdpSrcPorts.end()) {
 			if(it->first!=0) cout<<","; else {
@@ -189,8 +188,8 @@ void PrintJson(){
 
 	//top src tcp ports
 	std::cout << "\t,\"TopTcpSrcPorts\": { " <<std::endl;
-	for (std::vector<std::pair<int, int> >::iterator it = TopTcpSrcPorts.begin() ; it != TopTcpSrcPorts.end(); ++it)
-	{
+	//for (std::vector<std::pair<int, int> >::iterator it = TopTcpSrcPorts.begin() ; it != TopTcpSrcPorts.end(); ++it)
+	for (auto it = TopTcpSrcPorts.begin() ; it != TopTcpSrcPorts.end(); ++it){
 		std::cout <<"\t\t\""<< it->first << "\":" << it->second;
 		if(++it<TopTcpSrcPorts.end()) {
 			if(it->first!=0) cout<<","; else {
@@ -204,11 +203,10 @@ void PrintJson(){
 	cout<<"\t}"<<endl;
 
 
-
-
 	//top ip packet lens
 	std::cout << "\t,\"TopIpPacketLen\": { " <<std::endl;
-	for (std::vector<std::pair<int, int> >::iterator it = TopIpPacketLen.begin() ; it != TopIpPacketLen.end(); ++it)
+	//for (std::vector<std::pair<int, int> >::iterator it = TopIpPacketLen.begin() ; it != TopIpPacketLen.end(); ++it)
+	for (auto it = TopIpPacketLen.begin() ; it != TopIpPacketLen.end(); ++it)
 	{
 		std::cout <<"\t\t\""<< it->first << "\":" << it->second;
 		if(++it<TopIpPacketLen.end()) {
@@ -243,13 +241,18 @@ int main(int argc, char **argv){
 //for s in `cat packetstats.cpp |grep 'Out\[\"[0-9a-zA-Z_-]\{0,120\}\"\]' -o |sort -u `;do  echo $s=0\; ;done
 
 
+	if(argc<2) {
+		printf("Usage: %s <file> \n",argv[0]);
+		exit(0x01);
+	}
+
 	pcap=pcap_open_offline(argv[1], errbuf);
-	if(pcap==NULL){
+	if(pcap== nullptr){
 		fprintf(stderr,"Cannot open input file\n");
 		return 0;
 	}
 
-	while((packet=pcap_next(pcap,&hdr))!=NULL) {
+	while((packet=pcap_next(pcap,&hdr))!= nullptr) {
 		Out["TOTAL-Packets"]++;
 		/*
 			We add Interframe Gap, Preamble and CRC, so we get the actual bits/bytes on the wire,
@@ -392,6 +395,9 @@ int main(int argc, char **argv){
 								Out["L4_OTHER-Bytes"]++;
 								break;
 						}
+						break;
+					default:
+						//not ipv4 in ipv4 frame !
 						break;
 					}
 				break;
